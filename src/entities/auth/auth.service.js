@@ -6,17 +6,14 @@ import verificationCodeTemplate from '../../lib/emailTemplates.js';
 
 
 export const registerUserService = async ({
-  firstName,
-  lastName,
-  email,
-  password
+ name, phoneNumber, email, password
 }) => {
   const existingUser = await User.findOne({ email });
   if (existingUser) throw new Error('User already registered.');
 
   const newUser = new User({
-    firstName,
-    lastName,
+    name,
+    phoneNumber,
     email,
     password
   });
@@ -24,13 +21,13 @@ export const registerUserService = async ({
   const user = await newUser.save();
 
   const { _id, role, profileImage } = user;
-  return { _id, firstName, lastName, email, role, profileImage };
+  return { _id, name, phoneNumber, email, role, profileImage };
 };
 
 export const loginUserService = async ({ email, password }) => {
   if (!email || !password) throw new Error('Email and password are required');
 
-  const user = await User.findOne({ email }).select("_id firstName lastName email role profileImage");
+  const user = await User.findOne({ email }).select("_id name phoneNumber email role profileImage");
 
   if (!user) throw new Error('User not found');
 

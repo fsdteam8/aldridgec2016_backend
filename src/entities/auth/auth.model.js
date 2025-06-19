@@ -6,8 +6,7 @@ import { accessTokenExpires, accessTokenSecrete, refreshTokenExpires, refreshTok
 
 const UserSchema = new mongoose.Schema(
   {
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
+    name: { type: String, required: true },
     phoneNumber: { type: String, default: null },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
@@ -25,8 +24,7 @@ const UserSchema = new mongoose.Schema(
     hasActiveSubscription: { type: Boolean, default: false },
     subscriptionExpireDate: { type: Date, default: null },
     profileImage: { type: String, default: '' },
-    multiProfileImage: { type: [String], default: [] },
-    pdfFile: { type: String, default: '' }
+  
   },
   { timestamps: true }
 );

@@ -10,10 +10,10 @@ import {
 } from './auth.service.js';
 
 export const registerUser = async (req, res, next) => {
-  const { firstName, lastName, email, password } = req.body;
+  const { name, phoneNumber, email, password } = req.body;
   try {
 
-    const data = await registerUserService({ firstName, lastName, email, password });
+    const data = await registerUserService({ name, phoneNumber, email, password });
     generateResponse(res, 201, true, 'Registered user successfully!', data);
   }
 
