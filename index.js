@@ -4,7 +4,6 @@ import app from './src/app.js';
 import { mongoURI, port } from './src/core/config/config.js';
 
 
-
 mongoose
   .connect(mongoURI)
   .then(() => {

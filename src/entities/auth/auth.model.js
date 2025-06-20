@@ -4,32 +4,66 @@ import jwt from "jsonwebtoken";
 import bcrypt from 'bcrypt';
 import { accessTokenExpires, accessTokenSecrete, refreshTokenExpires, refreshTokenSecrete } from '../../core/config/config.js';
 
+
+const AddressSchema = new mongoose.Schema({
+  country: { type: String, default: '' },
+  cityState: { type: String, default: '' },
+  roadArea: { type: String, default: '' },
+  postalCode: { type: String, default: '' },
+  taxId: { type: String, default: '' }
+}, { _id: false });
+
+
 const UserSchema = new mongoose.Schema(
   {
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    phoneNumber: { type: String, default: null },
+    name: { type: String, required: true },
+    phoneNumber: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    username: { type: String, unique: true, default: '' },
+    dob: { type: Date, default: null },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other'],
+      default: 'male'
+    },
+
     role: {
       type: String,
       default: RoleType.USER,
-      enum: [RoleType.USER, RoleType.ADMIN, RoleType.SUPER_ADMIN]
+      enum: [RoleType.USER, RoleType.ADMIN],
     },
-    otp: { type: String, default: null },
-    otpExpires: { type: Date, default: null },
+
+    stripeAccountId: { type: String, default: null },
+
+    bio: { type: String, default: '' },
+    address: { type: AddressSchema, default: () => ({}) },
+
+    profileImage: { type: String, default: '' },
+    multiProfileImage: { type: [String], default: [] },
+    pdfFile: { type: String, default: '' },
+
+    otp: {
+      type: String,
+      default: null
+    },
+
+    otpExpires: {
+      type: Date,
+      default: null
+    },
+
     refreshToken: {
       type: String,
       default: ''
     },
+
     hasActiveSubscription: { type: Boolean, default: false },
     subscriptionExpireDate: { type: Date, default: null },
-    profileImage: { type: String, default: '' },
-    multiProfileImage: { type: [String], default: [] },
-    pdfFile: { type: String, default: '' }
   },
   { timestamps: true }
 );
+
 
 // Hashing password
 UserSchema.pre("save", async function (next) {
