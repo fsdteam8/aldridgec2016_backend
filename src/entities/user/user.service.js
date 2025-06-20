@@ -1,7 +1,9 @@
 import { createFilter, createPaginationInfo } from "../../lib/pagination.js";
-import { cloudinaryUpload } from "../../lib/cloudinaryUpload.js";
+import cloudinary, { cloudinaryUpload } from "../../lib/cloudinaryUpload.js";
 import User from "../auth/auth.model.js";
 import RoleType from "../../lib/types.js";
+import fs from "fs";
+
 
 // Get all users
 export const getAllUsers = async ({ page = 1, limit = 10, search, date }) => {
@@ -17,6 +19,7 @@ export const getAllUsers = async ({ page = 1, limit = 10, search, date }) => {
   return { users, paginationInfo };
 };
 
+
 // Get all admins
 export const getAllAdmins = async ({ page = 1, limit = 10, search, date }) => {
   const filter = createFilter(search, date);
@@ -31,19 +34,21 @@ export const getAllAdmins = async ({ page = 1, limit = 10, search, date }) => {
   return { admins, paginationInfo };
 };
 
-// Get all super admins
-export const getAllSuperAdmins = async ({ page = 1, limit = 10, search, date }) => {
+
+// Get all sellers 
+export const getAllSellers = async ({ page = 1, limit = 10, search, date }) => {
   const filter = createFilter(search, date);
-  const totalSuperAdmins = await User.countDocuments({ ...filter, role: RoleType.SUPER_ADMIN });
-  const superAdmins = await User.find({ ...filter, role: RoleType.SUPER_ADMIN })
+  const totalSellers = await User.countDocuments({ ...filter, role: RoleType.SELLER });
+  const sellers = await User.find({ ...filter, role: RoleType.SELLER })
     .select("-password -createdAt -updatedAt -__v -verificationCode -verificationCodeExpires")
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit);
 
-  const paginationInfo = createPaginationInfo(page, limit, totalSuperAdmins);
-  return { superAdmins, paginationInfo };
+  const paginationInfo = createPaginationInfo(page, limit, totalSellers);
+  return { sellers, paginationInfo };
 };
+
 
 // Get user by ID
 export const getUserById = async (userId) => {
@@ -53,6 +58,7 @@ export const getUserById = async (userId) => {
   }
   return user;
 };
+
 
 // Update user
 export const updateUser = async ({ id, ...updateData }) => {
@@ -67,6 +73,7 @@ export const updateUser = async ({ id, ...updateData }) => {
   return updatedUser;
 };
 
+
 // Delete user
 export const deleteUser = async (userId) => {
   const deletedUser = await User.findByIdAndDelete(userId);
@@ -76,32 +83,39 @@ export const deleteUser = async (userId) => {
   return true;
 };
 
+
 // Upload avatar
 export const createAvatarProfile = async (id, files) => {
-  const userFound = await User.findById(id);
-  if (!userFound) {
-    throw new Error('User not found');
-  }
 
-  if (!files || !files.profileImage || files.profileImage.length === 0) {
-    throw new Error('Profile image is required');
-  }
+  const userFound = await User.findById({_id: id});
+
+  if (!userFound) throw new Error('User not found');
 
   const profileImage = files.profileImage[0];
-  const sanitizedTitle = userFound.fullName
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[?&=]/g, "");
+  
+  // Generate secure filename
+  const sanitizedTitle = `${userFound._id}-${Date.now()}`; 
+  let cloudinaryResult;
 
-  const imgUrl = await cloudinaryUpload(profileImage.path, sanitizedTitle, "user-profile");
-  if (imgUrl === "file upload failed") {
-    throw new Error('File upload failed');
+  try {
+    cloudinaryResult = await cloudinaryUpload(profileImage.path, sanitizedTitle, "user-profile");
+    if (!cloudinaryResult?.url) throw new Error('Cloudinary upload failed');
+
+    // Update user 
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { profileImage: cloudinaryResult.url },
+      { new: true }
+    ).select("-password -createdAt -updatedAt -__v -verificationCode -verificationCodeExpires");
+
+    return updatedUser;
+  } catch (error) {
+    console.error('Error in createAvatarProfile:', error);
+    throw error;
+  } finally {
+    // Always clean up temp file
+    fs.unlink(profileImage.path, () => {}); 
   }
-
-  const updatedUser = await User.findByIdAndUpdate(id, { profileImage: imgUrl.url }, { new: true })
-    .select("-password -createdAt -updatedAt -__v -verificationCode -verificationCodeExpires");
-
-  return updatedUser;
 };
 
 
@@ -123,10 +137,12 @@ export const updateAvatarProfile = async (id, files) => {
     await cloudinary.uploader.destroy(publicId);
   }
 
-  const sanitizedTitle = userFound.fullName
+  const fullName = userFound.fullName || "user";
+  const sanitizedTitle = fullName
     .toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[?&=]/g, "");
+  
 
   const imgUrl = await cloudinaryUpload(profileImage.path, sanitizedTitle, "user-profile");
   if (imgUrl === "file upload failed") {
@@ -139,25 +155,39 @@ export const updateAvatarProfile = async (id, files) => {
   return updatedUser;
 };
 
+
 export const deleteAvatarProfile = async (id) => {
   const userFound = await User.findById(id);
-  if (!userFound) {
-    throw new Error('User not found');
+  if (!userFound) throw new Error('User not found');
+  if (!userFound.profileImage) throw new Error('No profile image to delete');
+
+  try {
+    // Extract public ID from URL 
+    const imageUrl = userFound.profileImage;
+    const publicId = imageUrl.split('/').slice(-2).join('/').split('.')[0];
+    
+    // Delete from Cloudinary
+    const cloudinaryResult = await cloudinary.uploader.destroy(publicId);
+    console.log('Cloudinary deletion result:', cloudinaryResult);
+    
+    // Verify deletion was successful
+    if (cloudinaryResult.result !== 'ok') {
+      throw new Error(`Cloudinary deletion failed: ${cloudinaryResult.result}`);
+    }
+
+    // Update user in database
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { profileImage: '' },
+      { new: true }
+    ).select("-password -createdAt -updatedAt -__v -verificationCode -verificationCodeExpires");
+
+    return updatedUser;
+  } catch (error) {
+    console.error('Error in deleteAvatarProfile:', error);
+    throw error; 
   }
-
-  if (!userFound.profileImage) {
-    throw new Error('No profile image to delete');
-  }
-
-  const publicId = userFound.profileImage.split('/').pop().split('.')[0];
-  await cloudinary.uploader.destroy(publicId);
-
-  const updatedUser = await User.findByIdAndUpdate(id, { profileImage: '' }, { new: true })
-    .select("-password -createdAt -updatedAt -__v -verificationCode -verificationCodeExpires");
-
-  return updatedUser;
 };
-
 
 
 export const createMultipleAvatar = async (id, files) => {
@@ -165,7 +195,6 @@ export const createMultipleAvatar = async (id, files) => {
   if (!userFound) {
     throw new Error('User not found');
   }
-
 
   if (!files || !files.multiProfileImage || files.multiProfileImage.length === 0) {
     throw new Error('Profile images are required');
@@ -213,7 +242,6 @@ export const updateMultipleAvatar = async (id, files) => {
 };
 
 
-
 export const deleteMultipleAvatar = async (id) => {
   const userFound = await User.findById(id);
   if (!userFound) {
@@ -232,7 +260,6 @@ export const deleteMultipleAvatar = async (id) => {
 
   return updatedUser;
 };  
-
 
 
 // Upload user PDF
@@ -310,3 +337,4 @@ export const deleteUserPDF = async (id) => {
 
   return updatedUser;
 };
+

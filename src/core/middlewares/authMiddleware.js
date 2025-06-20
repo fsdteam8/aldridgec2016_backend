@@ -1,107 +1,82 @@
 import jwt from 'jsonwebtoken';
 import {accessTokenSecrete} from '../../core/config/config.js';
 import RoleType from '../../lib/types.js';
+import User from '../../entities/auth/auth.model.js';
+import { generateResponse } from '../../lib/responseFormate.js';
 
 
-export const userMiddleware = (req, res, next) => {
+export const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'No token, auth denied' });
+  if (!token) generateResponse(res, 401, false, 'No token, auth denied', null);
 
   try {
     const decoded = jwt.verify(token, accessTokenSecrete);
-    req.user = decoded;
+    const user = await User.findById(decoded._id).select('-password -createdAt -updatedAt -__v');
+    if (!user) {
+      return generateResponse(res, 401, false, 'User not found', null);
+    }
+    req.user = user;
+    next();
+  }
 
-    if (req.user.role !== RoleType.USER) {
-      return res.status(403).json({ message: 'Admin access only' });
+  catch (err) {
+    if (err.name === "TokenExpiredError") {
+      generateResponse(res, 401, false, 'Token expired', null);
     }
 
-    next();
-  } catch (err) {
-    res.status(401).json({ message: 'Token is not valid' });
+    else if (err.name === "JsonWebTokenError") {
+      generateResponse(res, 401, false, 'Token is not valid', null);
+    }
+
+    else if (err.name === "NotBeforeError") {
+      generateResponse(res, 401, false, 'Token not active', null);
+    }
+
+    else {
+      next(err)
+    }
   }
 };
 
 
-export const adminMiddleware = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  console.log(token );
-  
-  if (!token) return res.status(401).json({ message: 'No token, auth denied' });
-
-  try {
-    console.log(accessTokenSecrete)
-    const decoded = jwt.verify(token, accessTokenSecrete);
-    req.user = decoded;
-
-    if (req.user.role !== RoleType.ADMIN) {
-      return res.status(403).json({ message: 'Admin access only' });
-    }
-
-    next();
-  } catch (err) {
-    console.log(err);
-    
-    res.status(401).json({ message: 'Token is not valid' });
+const userMiddleware = (req, res, next) => {
+  if (!req.user) {
+    return generateResponse(res, 401, false, 'Unauthorized: User not found', null);
   }
+  const { role } = req.user;
+
+  if (role !== "USER") {
+    generateResponse(res, 403, false, 'User access only', null);
+  }
+
+  next();
 };
 
 
-export const sellerMiddleware = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'No token, auth denied' });
-
-  try {
-    const decoded = jwt.verify(token, accessTokenSecrete);
-    req.user = decoded;
-
-    if (req.user.role !== RoleType.SELLER) {
-      return res.status(403).json({ message: 'Seller access only' });
-    }
-
-    next();
-  } catch (err) {
-    res.status(401).json({ message: 'Token is not valid' });
+const adminMiddleware = (req, res, next) => {
+  if (!req.user) {
+    return generateResponse(res, 401, false, 'Unauthorized: Admin not found', null);
   }
-};
+  const { role } = req.user;
 
-export const adminSellerMiddleware = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'No token, auth denied' });
-
-  try {
-    const decoded = jwt.verify(token, accessTokenSecrete);
-    req.user = decoded;
-    if (req.user.role !== RoleType.ADMIN && req.user.role !== RoleType.SELLER) {
-      return res.status(403).json({ message: 'Admin or Seller access only' });
-    }
-
-    next();
-  } catch (err) {
-    res.status(401).json({ message: 'Token is not valid' });
+  if (role !== "ADMIN") {
+    generateResponse(res, 403, false, 'Admin access only', null);
   }
-};
 
-export const userAdminSellerMiddleware = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'No token, auth denied' });
-
-  try {
-    const decoded = jwt.verify(token, accessTokenSecrete);
-    req.user = decoded;
-
-    if (
-      req.user.role !== RoleType.USER ||
-      req.user.role !== RoleType.ADMIN ||
-      req.user.role !== RoleType.SELLER
-    ) {
-      return res.status(403).json({ message: 'User, Admin or Seller access only' });
-    }
-
-    next();
-  } catch (err) {
-    res.status(401).json({ message: 'Token is not valid' });
-  }
+  next();
 };
 
 
+const userAdminMiddleware = (req, res, next) => {
+  const { role } = req.user || {};
+
+  if (![RoleType.USER, RoleType.ADMIN].includes(role))
+ {
+    return generateResponse(res, 403, false, 'User, Admin or Seller access only', null);
+  }
+  next();
+};
+
+
+export{ userMiddleware, adminMiddleware,  userAdminMiddleware };
 
