@@ -20,7 +20,7 @@ const UserSchema = new mongoose.Schema(
     phoneNumber: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    username: { type: String, unique: true, default: '' },
+    username: { type: String },
     dob: { type: Date, default: null },
     gender: {
       type: String,
