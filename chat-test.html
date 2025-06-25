@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Group Chat Test</title>
+</head>
+<body>
+  <h2>Group Chat</h2>
+
+  <input type="text" id="roomId" placeholder="Chat Room ID (Mongo ID)" />
+  <input type="text" id="userId" placeholder="User ID" />
+  <input type="text" id="token" placeholder="JWT Token" style="width: 300px;" />
+  <br><br>
+
+  <button onclick="joinRoom()">Join Room</button>
+
+  <div id="chat-box" style="margin-top: 20px; border: 1px solid black; padding: 10px; min-height: 150px;"></div>
+
+  <input type="text" id="messageInput" placeholder="Type a message..." />
+  <button onclick="sendMessage()">Send</button>
+
+  <br><br>
+  <input type="text" id="editMessageId" placeholder="Message ID to edit" />
+  <input type="text" id="newMessageText" placeholder="New message text" />
+  <button onclick="editMessage()">Edit Message</button>
+
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script>
+    const socket = io("http://localhost:5000");
+
+    let roomId = "";
+    let userId = "";
+    let token = "";
+
+    function joinRoom() {
+      roomId = document.getElementById("roomId").value;
+      userId = document.getElementById("userId").value;
+      token = document.getElementById("token").value;
+
+      if (!roomId || !userId || !token) {
+        alert("Please fill in Room ID, User ID, and Token");
+        return;
+      }
+
+      socket.emit("joinRoom", `room-${roomId}`);
+      console.log("Joined room:", `room-${roomId}`);
+    }
+
+    function sendMessage() {
+      const msgText = document.getElementById("messageInput").value;
+
+      fetch(`http://localhost:5000/api/chat/${roomId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: msgText
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("Message sent via REST:", data);
+        document.getElementById("messageInput").value = "";
+      })
+      .catch(err => console.error("Error:", err));
+    }
+
+    function editMessage() {
+      const messageId = document.getElementById("editMessageId").value;
+      const newText = document.getElementById("newMessageText").value;
+
+      fetch(`http://localhost:5000/api/chat/${messageId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: newText
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("Message edited:", data);
+      })
+      .catch(err => console.error("Edit error:", err));
+    }
+
+    socket.on("newMessage", (msg) => {
+      const chatBox = document.getElementById("chat-box");
+      const p = document.createElement("p");
+      p.innerText = `[NEW] ${msg.sender}: ${msg.message}`;
+      chatBox.appendChild(p);
+    });
+
+    socket.on("editMessage", (msg) => {
+      const chatBox = document.getElementById("chat-box");
+      const p = document.createElement("p");
+      p.innerText = `[EDITED] ${msg.sender}: ${msg.message}`;
+      chatBox.appendChild(p);
+    });
+
+  </script>
+</body>
+</html>

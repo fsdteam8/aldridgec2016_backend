@@ -18,6 +18,10 @@ import notFound from './core/middlewares/notFound.js';
 import { globalLimiter } from './lib/limit.js';
 import appRouter from './core/app/appRouter.js';
 
+// socket import
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +39,19 @@ app.use(
   );
 app.use(xssClean());
 app.use(mongoSanitize());
+
+
+
+// Socket IO setup
+const server = createServer(app);
+export const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+
 
 // Set up logging middleware
 app.use(morgan('combined'));
@@ -54,6 +71,26 @@ app.use("/uploads", express.static(uploadPath));
 // Set up API routes
 app.use('/api', appRouter);
 
+
+
+// Socket IO connection
+io.on("connection", (socket) => {
+  console.log("New client connected",socket.id);
+
+  // Join a room
+  socket.on("joinRoom", (room) => {
+    socket.join(`room-${room}`);
+   console.log(`Client ${room} joined room: ${room}`);
+  });
+
+  
+  socket.on("disconnect", () => {
+   console.log("Client disconnected");
+  });
+});
+
+
+
 // Set up 404 error middleware
 app.use(notFound);
 
@@ -62,6 +99,6 @@ app.use(errorHandler);
 
 logger.info('Middleware stack initialized');
 
-export default app;
+export  { server, app }; 
 
 
