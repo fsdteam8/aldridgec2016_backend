@@ -83,7 +83,6 @@ export const leaveChatRoomService = async (roomId, userId) => {
 };
 
 
-
 export const getUserChatRoomsService = async (userId) => {
   const rooms = await ChatRoom.find({ participants: userId }).populate("participants", "name email");
   return rooms;
@@ -119,7 +118,6 @@ export const getRoomMessagesService = async (roomId, skip, limit) => {
 };
 
 
-
 export const markMessagesAsReadService = async (roomId, userId) => {
   await Message.updateMany(
     {
@@ -144,7 +142,7 @@ export const editMessageService = async (messageId, newText, userId) => {
   if (!message) throw new Error("Message not found or not editable by user");
   
   // emit
-  io.to(`room-${roomId}`).emit("editMessage", message);
+  io.to(`room-${message.chatRoom}`).emit("editMessage", message);
 
   return message;
 };

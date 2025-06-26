@@ -144,7 +144,6 @@ export const getRoomMessages = async (req, res) => {
 };
 
 
-
 export const markMessagesAsRead = async (req, res) => {
   try {
     const { roomId } = req.params;

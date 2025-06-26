@@ -31,6 +31,9 @@ const taskSchema = new Schema(
     actionSteps: {
       type: String
     },
+    tips: {
+      type: String
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",

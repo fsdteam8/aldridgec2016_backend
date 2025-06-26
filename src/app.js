@@ -80,7 +80,7 @@ io.on("connection", (socket) => {
   // Join a room
   socket.on("joinRoom", (room) => {
     socket.join(`room-${room}`);
-   console.log(`Client ${room} joined room: ${room}`);
+    console.log(`Client ${room} joined room: ${room}`);
   });
 
   
