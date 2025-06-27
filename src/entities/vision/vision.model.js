@@ -9,7 +9,7 @@ const subTaskSchema = new Schema(
   { _id: false }
 );
 
-const taskSchema = new Schema(
+const visionSchema = new Schema(
   {
     title: {
       type: String,
@@ -45,5 +45,5 @@ const taskSchema = new Schema(
   }
 );
 
-const Task = mongoose.model("Task", taskSchema);
-export default Task;
+const Vision = mongoose.model("Vision", visionSchema);
+export default Vision;
