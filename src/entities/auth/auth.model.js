@@ -53,6 +53,11 @@ const UserSchema = new mongoose.Schema(
       default: null
     },
 
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+
     refreshToken: {
       type: String,
       default: ''

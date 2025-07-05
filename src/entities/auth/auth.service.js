@@ -5,50 +5,94 @@ import sendEmail from '../../lib/sendEmail.js';
 import verificationCodeTemplate from '../../lib/emailTemplates.js';
 
 
-export const registerUserService = async ({
-  name,
-  phoneNumber,
-  email,
-  password
-}) => {
+export const initiateRegisterUserService = async ({ name, phoneNumber, email, password }) => {
   const existingUser = await User.findOne({ email });
-  if (existingUser) throw new Error('User already registered.');
 
-  const newUser = new User({
-    name,
-    phoneNumber,
-    email,
-    password
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
+
+  if (existingUser) {
+    if (existingUser.isVerified) {
+      throw new Error('User already verified');
+    }
+
+    // User exists but not verified → update OTP
+    existingUser.otp = otp;
+    existingUser.otpExpires = otpExpires;
+    existingUser.name = name; 
+    existingUser.phoneNumber = phoneNumber;
+    existingUser.password = password; 
+    await existingUser.save();
+  } 
+  else {
+    const newUser = new User({
+      name,
+      phoneNumber,
+      email,
+      password,
+      otp,
+      otpExpires
+    });
+    await newUser.save();
+  }
+
+  await sendEmail({
+    to: email,
+    subject: 'Your OTP Code',
+    html: `<p>Your verification code is: <strong>${otp}</strong></p>`
   });
+};
 
-  const user = await newUser.save();
 
-  const { _id, role, profileImage } = user;
-  return { _id, name, phoneNumber , email, role, profileImage };
+export const verifyRegisterOTPService = async (email, otp) => {
+  const user = await User.findOne({ email });
+
+  if (!user) throw new Error('User not found');
+  if (user.isVerified) throw new Error('User already verified');
+  if (user.otp !== otp) throw new Error('Invalid OTP');
+  if (user.otpExpires < new Date()) throw new Error('OTP expired');
+
+  user.isVerified = true;
+  user.otp = null;
+  user.otpExpires = null;
+
+  await user.save();
+
+  const { _id, role, profileImage, name, phoneNumber } = user;
+  return { _id, email, role, profileImage, name, phoneNumber };
 };
 
 
 export const loginUserService = async ({ email, password }) => {
   if (!email || !password) throw new Error('Email and password are required');
 
-  const user = await User.findOne({ email }).select("_id firstName lastName email role profileImage");
+  const user = await User.findOne({ email }).select("_id name email role profileImage password isVerified refreshToken updatedAt");
 
   if (!user) throw new Error('User not found');
+  if (!user.isVerified) throw new Error('Please verify your email before logging in');
 
   const isMatch = await user.comparePassword(user._id, password);
   if (!isMatch) throw new Error('Invalid password');
-  
-  const payload = { _id: user._id , role: user.role };
-  
-  const data = {
-    user,
-    accessToken: user.generateAccessToken(payload),
-  };
 
-  user.refreshToken = user.generateRefreshToken(payload);
+  const payload = { _id: user._id, role: user.role };
+
+  const accessToken = user.generateAccessToken(payload);
+  const refreshToken = user.generateRefreshToken(payload);
+
+  user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
-  return data
+  return {
+    user: {
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+      profileImage: user.profileImage,
+      refreshToken,
+      updatedAt: user.updatedAt,
+    },
+    accessToken
+  };
 };
 
 

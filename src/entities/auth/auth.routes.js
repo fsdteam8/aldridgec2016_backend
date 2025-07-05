@@ -1,6 +1,7 @@
 import express from 'express';
 import {
-  registerUser,
+  initiateRegisterUser,
+  verifyRegisterOTP,
   loginUser,
   refreshAccessToken,
   forgetPassword,
@@ -15,7 +16,8 @@ import { userAdminMiddleware, verifyToken } from '../../core/middlewares/authMid
 const router = express.Router();
 
 
-router.post('/register', registerUser);
+router.post('/register/init', initiateRegisterUser);     
+router.post('/register/verify', verifyRegisterOTP);     
 router.post('/login', loginUser);
 router.post('/refresh-access-token', refreshAccessToken);
 router.post('/forget-password', forgetPassword);
