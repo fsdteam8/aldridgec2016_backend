@@ -1,4 +1,5 @@
 import { io } from "../../app.js";
+import User from "../auth/auth.model.js";
 import ChatRoom from "./chatRoom.model.js";
 import Message from "./message.model.js";
 
@@ -100,16 +101,19 @@ export const sendMessageService = async (roomId, senderId, messageText) => {
     readBy: [senderId]
   });
 
-  // emit
-  io.to(`room-${roomId}`).emit("newMessage", message);
+  // CORRECT: Populate the sender info from the Message document
+  const populatedMessage = await Message.findById(message._id).populate("sender", "name email profileImage username");
 
-  return message;
+  // emit
+  io.to(`room-${roomId}`).emit("newMessage", populatedMessage);
+
+  return populatedMessage;
 };
 
 
 export const getRoomMessagesService = async (roomId, skip, limit) => {
   const messages = await Message.find({ chatRoom: roomId })
-    .populate("sender", "name email")
+    .populate("sender", "name email profileImage")
     .sort({ createdAt: -1 }) 
     .skip(Number(skip))
     .limit(Number(limit));
@@ -136,7 +140,7 @@ export const editMessageService = async (messageId, newText, userId) => {
     { _id: messageId, sender: userId },
     { message: newText },
     { new: true }
-  );
+  ).populate("sender", "name email avatar profilePicture username");
   
 
   if (!message) throw new Error("Message not found or not editable by user");

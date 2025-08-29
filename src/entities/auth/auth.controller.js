@@ -59,8 +59,8 @@ export const loginUser = async (req, res, next) => {
     else if (error.message === 'Invalid password') {
       generateResponse(res, 400, false, 'Invalid password', null);
     }
-    else if (error.message === 'Please verify your email before logging in') {
-      generateResponse(res, 400, false, 'Please verify your email before logging in', null);
+    else if (error.message === 'Please verify your email before logging in. New OTP sent.') {
+      generateResponse(res, 400, false, 'Please verify your email before logging in. New OTP sent.', null);
     }
 
     else {

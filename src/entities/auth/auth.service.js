@@ -69,7 +69,23 @@ export const loginUserService = async ({ email, password }) => {
   const user = await User.findOne({ email }).select("_id name email role profileImage password isVerified refreshToken updatedAt");
 
   if (!user) throw new Error('User not found');
-  if (!user.isVerified) throw new Error('Please verify your email before logging in');
+  if (!user.isVerified) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    
+    user.otp = otp;
+    user.otpExpires = otpExpires;
+    await user.save({ validateBeforeSave: false });
+    
+    // Resend OTP email
+    await sendEmail({
+      to: email,
+      subject: 'Your OTP Code',
+      html: `<p>Your verification code is: <strong>${otp}</strong></p>`
+    });
+
+    throw new Error('Please verify your email before logging in. New OTP sent.');
+  }
 
   const isMatch = await user.comparePassword(user._id, password);
   if (!isMatch) throw new Error('Invalid password');

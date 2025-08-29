@@ -122,6 +122,9 @@ export const sendMessage = async (req, res) => {
     const senderId = req.user._id;
 
     const newMessage = await sendMessageService(roomId, senderId, message);
+
+    console.log(newMessage);
+    
     generateResponse(res, 201, true, "Message sent", newMessage);
   } catch (error) {
     generateResponse(res, 500, false, "Failed to send message", error.message);
