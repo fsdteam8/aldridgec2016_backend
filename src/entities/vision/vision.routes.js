@@ -6,7 +6,7 @@ import {
   updateVision,
   deleteVision
 } from './vision.controller.js';
-import { adminMiddleware, verifyToken } from '../../core/middlewares/authMiddleware.js';
+import { userMiddleware, verifyToken } from '../../core/middlewares/authMiddleware.js';
 
 
 const router = express.Router();
@@ -14,14 +14,14 @@ const router = express.Router();
 
 router
   .route('/')
-  .post(verifyToken, adminMiddleware, createVision)
+  .post(verifyToken, userMiddleware, createVision)
   .get(verifyToken, getAllVisions);
 
 router
   .route('/:id')
   .get(verifyToken, getVisionById)
-  .put(verifyToken, adminMiddleware, updateVision)
-  .delete(verifyToken, adminMiddleware, deleteVision);
+  .put(verifyToken, userMiddleware, updateVision)
+  .delete(verifyToken, userMiddleware, deleteVision);
 
 
 export default router;
