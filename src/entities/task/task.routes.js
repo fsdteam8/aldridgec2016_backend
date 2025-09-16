@@ -6,20 +6,20 @@ import {
   updateTask,
   deleteTask
 } from './task.controller.js';
-import { adminMiddleware, verifyToken } from '../../core/middlewares/authMiddleware.js';
+import { userMiddleware, verifyToken } from '../../core/middlewares/authMiddleware.js';
 
 
 const router = express.Router();
 
 router
   .route('/')
-  .post(verifyToken, adminMiddleware, createTask)
+  .post(verifyToken, userMiddleware, createTask)
   .get(getAllTasks);
 
 router
   .route('/:id')
   .get(getTaskById)
-  .put(verifyToken, adminMiddleware, updateTask)
-  .delete(verifyToken, adminMiddleware, deleteTask);
+  .put(verifyToken, userMiddleware, updateTask)
+  .delete(verifyToken, userMiddleware, deleteTask);
 
 export default router;
