@@ -4,12 +4,18 @@ import { refreshTokenSecrete, emailExpires } from '../../core/config/config.js';
 import sendEmail from '../../lib/sendEmail.js';
 import verificationCodeTemplate from '../../lib/emailTemplates.js';
 
-
-export const initiateRegisterUserService = async ({ name, phoneNumber, email, password }) => {
+export const initiateRegisterUserService = async ({
+  name,
+  phoneNumber,
+  email,
+  password
+}) => {
   const existingUser = await User.findOne({ email });
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+  // let userName = name;
 
   if (existingUser) {
     if (existingUser.isVerified) {
@@ -19,12 +25,11 @@ export const initiateRegisterUserService = async ({ name, phoneNumber, email, pa
     // User exists but not verified → update OTP
     existingUser.otp = otp;
     existingUser.otpExpires = otpExpires;
-    existingUser.name = name; 
+    existingUser.name = name;
     existingUser.phoneNumber = phoneNumber;
-    existingUser.password = password; 
+    existingUser.password = password;
     await existingUser.save();
-  } 
-  else {
+  } else {
     const newUser = new User({
       name,
       phoneNumber,
@@ -33,16 +38,17 @@ export const initiateRegisterUserService = async ({ name, phoneNumber, email, pa
       otp,
       otpExpires
     });
+
+    // userName = newUser.name;
     await newUser.save();
   }
 
   await sendEmail({
     to: email,
     subject: 'Your OTP Code',
-    html: `<p>Your verification code is: <strong>${otp}</strong></p>`
+    templateData : {otp : otp, name: name}
   });
 };
-
 
 export const verifyRegisterOTPService = async (email, otp) => {
   const user = await User.findOne({ email });
@@ -56,35 +62,45 @@ export const verifyRegisterOTPService = async (email, otp) => {
   user.otp = null;
   user.otpExpires = null;
 
+  const payload = { _id: user._id, role: user.role };
+
+  const accessToken = user.generateAccessToken(payload);
+  const refreshToken = user.generateRefreshToken(payload);
+
+  user.refreshToken = refreshToken;
+
   await user.save();
 
   const { _id, role, profileImage, name, phoneNumber } = user;
-  return { _id, email, role, profileImage, name, phoneNumber };
+  return { _id, email, role, profileImage, name, phoneNumber, accessToken, refreshToken };
 };
-
 
 export const loginUserService = async ({ email, password }) => {
   if (!email || !password) throw new Error('Email and password are required');
 
-  const user = await User.findOne({ email }).select("_id name email role profileImage password isVerified refreshToken updatedAt");
+  const user = await User.findOne({ email }).select(
+    '_id name email role profileImage password isVerified refreshToken updatedAt'
+  );
 
   if (!user) throw new Error('User not found');
   if (!user.isVerified) {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    
+
     user.otp = otp;
     user.otpExpires = otpExpires;
     await user.save({ validateBeforeSave: false });
-    
+
     // Resend OTP email
     await sendEmail({
       to: email,
       subject: 'Your OTP Code',
-      html: `<p>Your verification code is: <strong>${otp}</strong></p>`
+      templateData : {otp : otp, name: user.name}
     });
 
-    throw new Error('Please verify your email before logging in. New OTP sent.');
+    throw new Error(
+      'Please verify your email before logging in. New OTP sent.'
+    );
   }
 
   const isMatch = await user.comparePassword(user._id, password);
@@ -105,12 +121,11 @@ export const loginUserService = async ({ email, password }) => {
       role: user.role,
       profileImage: user.profileImage,
       refreshToken,
-      updatedAt: user.updatedAt,
+      updatedAt: user.updatedAt
     },
     accessToken
   };
 };
-
 
 export const refreshAccessTokenService = async (refreshToken) => {
   if (!refreshToken) throw new Error('No refresh token provided');
@@ -119,28 +134,27 @@ export const refreshAccessTokenService = async (refreshToken) => {
 
   if (!user) throw new Error('Invalid refresh token');
 
-  const decoded = jwt.verify(refreshToken, refreshTokenSecrete)
+  const decoded = jwt.verify(refreshToken, refreshTokenSecrete);
 
-  if (!decoded || decoded._id !== user._id.toString()) throw new Error('Invalid refresh token')
+  if (!decoded || decoded._id !== user._id.toString())
+    throw new Error('Invalid refresh token');
 
-  const payload = { _id: user._id , role: user.role }
+  const payload = { _id: user._id, role: user.role };
 
   const accessToken = user.generateAccessToken(payload);
   const newRefreshToken = user.generateRefreshToken(payload);
 
   user.refreshToken = newRefreshToken;
-  await user.save({ validateBeforeSave: false })
+  await user.save({ validateBeforeSave: false });
 
   return {
     accessToken,
     refreshToken: newRefreshToken
-  }
+  };
 };
 
-
 export const forgetPasswordService = async (email) => {
-
-  if (!email) throw new Error('Email is required')
+  if (!email) throw new Error('Email is required');
 
   const user = await User.findOne({ email });
   if (!user) throw new Error('Invalid email');
@@ -155,16 +169,14 @@ export const forgetPasswordService = async (email) => {
   await sendEmail({
     to: email,
     subject: 'Password Reset OTP',
-    html: verificationCodeTemplate(otp)
+    templateData : {otp : otp, name: user.name}
   });
 
   return;
 };
 
-
 export const verifyCodeService = async ({ email, otp }) => {
-
-  if (!email || !otp) throw new Error('Email and otp are required')
+  if (!email || !otp) throw new Error('Email and otp are required');
 
   const user = await User.findOne({ email });
 
@@ -172,7 +184,11 @@ export const verifyCodeService = async ({ email, otp }) => {
 
   if (!user.otp || !user.otpExpires) throw new Error('Otp not found');
 
-  if (parseInt(user.otp, 10) !== parseInt(otp, 10) || Date.now() > user.otpExpires.getTime()) throw new Error('Invalid or expired otp')
+  if (
+    parseInt(user.otp, 10) !== parseInt(otp, 10) ||
+    Date.now() > user.otpExpires.getTime()
+  )
+    throw new Error('Invalid or expired otp');
 
   user.otp = null;
   user.otpExpires = null;
@@ -181,9 +197,32 @@ export const verifyCodeService = async ({ email, otp }) => {
   return;
 };
 
+export const resendRegisterOTPService = async (email) => {
+  if (!email) throw new Error('Email is required');
+
+  const user = await User.findOne({ email });
+  if (!user) throw new Error('User not found');
+  if (user.isVerified) throw new Error('User already verified');
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  user.otp = otp;
+  user.otpExpires = otpExpires;
+  await user.save({ validateBeforeSave: false });
+
+  await sendEmail({
+    to: email,
+    subject: 'Your OTP Code',
+    templateData : {otp : otp, name: user.name}
+  });
+
+  return { message: 'New OTP sent to your email' };
+};
 
 export const resetPasswordService = async ({ email, newPassword }) => {
-  if (!email || !newPassword) throw new Error('Email and new password are required');
+  if (!email || !newPassword)
+    throw new Error('Email and new password are required');
 
   const user = await User.findOne({ email });
   if (!user) throw new Error('Invalid email');
@@ -196,9 +235,13 @@ export const resetPasswordService = async ({ email, newPassword }) => {
   return;
 };
 
-
-export const changePasswordService = async ({ userId, oldPassword, newPassword }) => {
-  if (!userId || !oldPassword || !newPassword) throw new Error('User id, old password and new password are required');
+export const changePasswordService = async ({
+  userId,
+  oldPassword,
+  newPassword
+}) => {
+  if (!userId || !oldPassword || !newPassword)
+    throw new Error('User id, old password and new password are required');
 
   const user = await User.findById(userId);
   if (!user) throw new Error('User not found');

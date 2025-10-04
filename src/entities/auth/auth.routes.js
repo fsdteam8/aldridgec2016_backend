@@ -2,6 +2,7 @@ import express from 'express';
 import {
   initiateRegisterUser,
   verifyRegisterOTP,
+  resendRegisterOTP,
   loginUser,
   refreshAccessToken,
   forgetPassword,
@@ -10,21 +11,22 @@ import {
   changePassword,
   logoutUser
 } from './auth.controller.js';
-import { userAdminMiddleware, verifyToken } from '../../core/middlewares/authMiddleware.js';
-
+import {
+  userAdminMiddleware,
+  verifyToken
+} from '../../core/middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-
-router.post('/register/init', initiateRegisterUser);     
-router.post('/register/verify', verifyRegisterOTP);     
+router.post('/register/init', initiateRegisterUser);
+router.post('/register/verify', verifyRegisterOTP);
+router.post('/register/resendRegisterOtp', resendRegisterOTP);
 router.post('/login', loginUser);
 router.post('/refresh-access-token', refreshAccessToken);
 router.post('/forget-password', forgetPassword);
 router.post('/verify-code', verifyCode);
 router.post('/reset-password', resetPassword);
-router.post('/change-password',verifyToken, changePassword);
+router.post('/change-password', verifyToken, changePassword);
 router.post('/logout', verifyToken, userAdminMiddleware, logoutUser);
-
 
 export default router;

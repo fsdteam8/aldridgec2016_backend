@@ -3,6 +3,7 @@ import User from './auth.model.js';
 import {
   loginUserService,
   refreshAccessTokenService,
+  resendRegisterOTPService,
   forgetPasswordService,
   verifyCodeService,
   resetPasswordService,
@@ -15,6 +16,7 @@ import {
 export const initiateRegisterUser = async (req, res, next) => {
   try {
     const { name, phoneNumber, email, password } = req.body;
+    console.log("register ", req.body);
     await initiateRegisterUserService({ name, phoneNumber, email, password });
     generateResponse(res, 200, true, 'OTP sent to email', null);
   } catch (error) {
@@ -37,6 +39,23 @@ export const verifyRegisterOTP = async (req, res, next) => {
   }
 };
 
+export const resendRegisterOTP = async (req, res, next) => {
+  const { email } = req.body;
+  try {
+    await resendRegisterOTPService(email);
+    generateResponse(res, 200, true, 'New OTP sent to your email', null);
+  } catch (error) {
+    if (error.message === 'Email is required') {
+      generateResponse(res, 400, false, 'Email is required', null);
+    } else if (error.message === 'User not found') {
+      generateResponse(res, 404, false, 'User not found', null);
+    } else if (error.message === 'User already verified') {
+      generateResponse(res, 400, false, 'User already verified', null);
+    } else {
+      next(error);
+    }
+  }
+};
 
 export const loginUser = async (req, res, next) => {
   const { email, password } = req.body;
