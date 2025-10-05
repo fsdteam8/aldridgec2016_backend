@@ -4,16 +4,17 @@ import {
   getAllAiMessagesService,
   getAiMessageByIdService,
   updateAiMessageService,
-  deleteAiMessageService
+  deleteAiMessageService,
+  getAiMessageByUidService
 } from './aiMessage.service.js';
 
 export const createAiMessage = async (req, res) => {
   try {
-    const { title, content } = req.body;
+    const { title, content, uid, role } = req.body;
     if (!title || !content) {
       return generateResponse(res, 400, false, 'Title and content are required', null);
     }
-    const message = await createAiMessageService({ title, content }, req.user._id);
+    const message = await createAiMessageService({ title, content, uid, role }, req.user._id);
     generateResponse(res, 201, true, 'AI Message created successfully', message);
   } catch (error) {
     console.error(error);
@@ -43,10 +44,22 @@ export const getAiMessageById = async (req, res) => {
     generateResponse(res, 500, false, 'Failed to fetch AI message', null);
   }
 };
+export const getAiMessageByuid = async (req, res) => {
+  try {
+    const message = await getAiMessageByUidService(req.params.id, req.user._id);
+    if (!message) {
+      return generateResponse(res, 404, false, 'AI Message not found or unauthorized', null);
+    }
+    generateResponse(res, 200, true, 'AI Message fetched successfully', message);
+  } catch (error) {
+    console.error(error);
+    generateResponse(res, 500, false, 'Failed to fetch AI message', null);
+  }
+};
 
 export const updateAiMessage = async (req, res) => {
   try {
-    const { title, content, isRead } = req.body;
+    const { title, content, role, isRead } = req.body;
     if (!title && !content && isRead === undefined) {
       return generateResponse(res, 400, false, 'At least one field is required to update', null);
     }

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import AiMessage from './aiMessage.model.js';
 
 export const createAiMessageService = async (messageData, userId) => {
@@ -5,13 +6,35 @@ export const createAiMessageService = async (messageData, userId) => {
 };
 
 export const getAllAiMessagesService = async (userId) => {
-  return await AiMessage.find({ createdBy: userId })
-    .sort({ createdAt: -1 })
-    .select('title content isRead createdAt');
+return await AiMessage.aggregate([
+    {
+      $match: { createdBy: new mongoose.Types.ObjectId(userId) }
+    },
+    {
+      $group: {
+        _id: "$uid",               // group by Uid
+        title: { $first: "$title" } // take the first title for each Uid
+      }
+    },
+    {
+      $project: {
+        _id: 0,       // remove default _id
+        uid: "$_id",  // rename _id to Uid
+        title: 1
+      }
+    },
+    {
+      $sort: { title: 1 } // optional: sort alphabetically or however you want
+    }
+  ]);
 };
 
 export const getAiMessageByIdService = async (messageId, userId) => {
   return await AiMessage.findOne({ _id: messageId, createdBy: userId })
+    .select('title content isRead createdAt');
+};
+export const getAiMessageByUidService = async (messageId, userId) => {
+  return await AiMessage.findOne({ uid: messageId, createdBy: userId })
     .select('title content isRead createdAt');
 };
 

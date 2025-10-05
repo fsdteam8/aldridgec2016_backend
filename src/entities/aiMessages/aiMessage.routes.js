@@ -4,7 +4,8 @@ import {
   getAllAiMessages,
   getAiMessageById,
   updateAiMessage,
-  deleteAiMessage
+  deleteAiMessage,
+  getAiMessageByuid
 } from './aiMessage.controller.js';
 import { verifyToken, userMiddleware } from '../../core/middlewares/authMiddleware.js';
 
@@ -20,5 +21,8 @@ router
   .get(verifyToken, userMiddleware, getAiMessageById)
   .put(verifyToken, userMiddleware, updateAiMessage)
   .delete(verifyToken, userMiddleware, deleteAiMessage);
+
+  router.route('/uid/:id')
+  .get(verifyToken, userMiddleware, getAiMessageByuid)
 
 export default router;
