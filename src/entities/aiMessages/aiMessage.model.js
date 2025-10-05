@@ -2,6 +2,15 @@ import mongoose, { Schema } from 'mongoose';
 
 const AiMessageSchema = new Schema(
   {
+    uid: {
+      type: String,
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['user', 'ai'],
+      required: true
+    },
     title: {
       type: String,
       required: true,
@@ -27,5 +36,6 @@ const AiMessageSchema = new Schema(
   }
 );
 
-const AiMessage = mongoose.models.AiMessage || mongoose.model('AiMessage', AiMessageSchema);
+const AiMessage =
+  mongoose.models.AiMessage || mongoose.model('AiMessage', AiMessageSchema);
 export default AiMessage;
